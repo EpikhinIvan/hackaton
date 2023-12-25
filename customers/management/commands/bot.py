@@ -34,10 +34,8 @@ def end_trip(user_id):
 
         try:
             passenger = Passenger.objects.get(assigned_driver=user)
-            passenger.assigned_driver = None  # Прерываем связь с водителем
+            passenger.assigned_driver = None  
             passenger.save()
-
-            # Обновляем статус водителя
             user.status = 'not_working'
             user.save()
 
@@ -164,7 +162,6 @@ def update_status(user_id, new_status):
     if user_telegram_id in logged_in_users:
         user = logged_in_users[user_telegram_id]
 
-        # Обновляем статус водителя
         user.status = new_status
         user.save()
 

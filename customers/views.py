@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
 from .models import Passenger, Driver
 from .forms import DriverForm
@@ -88,23 +88,27 @@ def link_passenger_driver(request):
 
 ##############################################
 
-def extract_passenger_and_flight_info(text, exclude_brackets=False):
-    passenger_info_pattern = r"Passengers\s*\n\s*SINGLE\s*\n(\w+ \w+ \(\w+\))"
-    flight_info_pattern = r"KC\d+,\s*(\d{2}\.\d{2}\.\d{4}\s*\(\d{2}:\d{2}\))" if not exclude_brackets else r"KC\d+,\s*\d{2}\.\d{2}\.\d{4}\s*\(\d{2}:\d{2}\)"
+def extract_info(text):
+    passenger_info_pattern = r"Passengers\s*SINGLE\s*([\w\s]+)\s*\("
+    flight_info_pattern = r"(KC\d+),\s*(\d{2}\.\d{2}\.\d{4}\s*\(\d{2}:\d{2}\))"
 
     passenger_match = re.search(passenger_info_pattern, text)
-    passenger_info = passenger_match.group(1) if passenger_match else 'Passenger information not found'
+    passenger_info = passenger_match.group(1) if passenger_match else 'Информация о пассажире не найдена'
 
     flight_info_matches = re.findall(flight_info_pattern, text)
-    flight_info = flight_info_matches[0] if flight_info_matches else 'Flight information not found'
+    flight_info = flight_info_matches if flight_info_matches else 'Информация о рейсе не найдена'
 
     return passenger_info, flight_info
 
-def filter_and_save_passengers(passenger_info, flight_info):
-    for passenger_name in passenger_info.split('\n'):
-        passenger_name = passenger_name.strip()
-        if passenger_name:
-            Passenger.objects.create(name=passenger_name, arrival_time=datetime.strptime(flight_info, '%d.%m.%Y (%H:%M)'))
+def filter_and_save(passenger_info, flight_info_list):
+    for flight_info in flight_info_list:
+        flight_number, flight_datetime = flight_info
+        arrival_time = datetime.strptime(flight_datetime, '%d.%m.%Y (%H:%M)')
+
+        for passenger_name in passenger_info.split('\n'):
+            passenger_name = passenger_name.strip()
+            if passenger_name:
+                Passenger.objects.create(name=passenger_name, arrival_time=arrival_time, flight_number=flight_number)
 
 def upload_pdf(request):
     if request.method == 'POST':
@@ -118,11 +122,11 @@ def upload_pdf(request):
                         for page in pdf:
                             pdf_text += page.get_text()
 
-                    passenger_info, flight_info = extract_passenger_and_flight_info(pdf_text)
+                    passenger_info, flight_info = extract_info(pdf_text)
 
-                    filter_and_save_passengers(passenger_info, flight_info)
+                    filter_and_save(passenger_info, flight_info)
 
-                    return HttpResponse('Passengers saved to the database.')
+                    return render(request, 'main/add_pas.html', {'form': form})
                 except Exception as e:
                     logger.error(f'Ошибка при загрузке файла: {e}')
                     return HttpResponse(f'Error: {e}', status=500)
