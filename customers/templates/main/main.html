@@ -1,21 +1,43 @@
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <link rel="stylesheet" href="{% static 'main/css/main.css' %}">
     <title>Document</title>
 </head>
+
 <body>
     {% if user.is_authenticated %}
-    <p>Вы вошли как: {{ user.username }}</p>
     <form method="post" action="{% url 'logout' %}">
         {% csrf_token %}
-        <button type="submit">Выйти</button>
+        <button class="exit" type="submit">Выйти</button>
     </form>
-{% else %}
-    <!-- Код для формы входа -->
-{% endif %}
+    <p>Вы вошли как: {{ user.username }}</p>
 
+    <div class="container">
+        <h2>Добавить водителя</h2>
+        <form method="post" action="{% url 'add_driver' %}">
+            {% csrf_token %}
+            <label for="car_number">Номер машины:</label>
+            <input type="text" name="car_number" required>
+            <label for="password">Пароль:</label>
+            <input type="password" name="password" required>
+            <button class="accept" type="submit">Добавить</button>
+        </form>
+        <div>
+            <button class="navlink"><a class="nav" href="{% url 'link_passenger_driver' %}">Привязать водителя</a></button>
+        </div>
+    </div>
+
+    
+
+    {% else %}
+    {% endif %}
 </body>
+
 </html>

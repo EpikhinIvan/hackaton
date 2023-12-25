@@ -6,29 +6,25 @@
     <meta charset="UTF-8">
     <title>Main Page</title>
     <link rel="stylesheet" href="{% static 'main/css/index.css' %}">
-
 </head>
 
 <body>
-
-
     <div class="logo">
         <img src="{% static 'main/img/my.png' %}" alt="logo">
     </div>
 
 
-
-    <div class="login-button"> 
-        <button><a href="{% url 'login_view' %}">Log in</a></button>
+    <div class="login-button">
+        <button  class="btn2"><a href="{% url 'login_view' %}">Log in</a></button>
     </div>
-
+    
 
     <div class="container">
         <p>Here you can find information about the drivers.</p>
 
         <form method="post" class="search-form">
             {% csrf_token %}
-            <input type="text" name="car_number" placeholder="Enter your name">
+            <input type="text" name="passenger_name" placeholder="Enter passenger name">
             <button type="submit">Search</button>
         </form>
 
@@ -36,20 +32,21 @@
             <div class="results">
                 <h2>Search Results:</h2>
                 <ul>
-                    {% for driver in results %}
-                        <li>{{ driver.name }} - {{ driver.car_number }}</li>
+                    {% for result in results %}
+                        <li>
+                            Passenger: {{ result.passenger.name }}<br>
+                            Сar number: {{ result.driver.car_number }} - Status: {{ result.driver.status }}
+                        </li>
                     {% endfor %}
                 </ul>
             </div>
         {% else %}
-            {% if 'car_number' in request.POST %}
+            {% if 'passenger_name' in request.POST %}   
                 <div class="no-results">
-                    <p>Nothing was found for your query.</p>
+                    <p>Nothing was found for your query.</p>    
                 </div>
             {% endif %}
         {% endif %}
     </div>
-
-
 </body>
 </html>

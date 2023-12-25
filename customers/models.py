@@ -1,27 +1,27 @@
 from django.db import models
 
-class User(models.Model):
-    driver_id = models.AutoField(primary_key=True)
-    car_number = models.CharField(max_length=255)  # или другой максимальный размер, который вам нужен
-    password = models.CharField(max_length=255)  # аналогично, выберите подходящую максимальную длину
+class Driver(models.Model):
+    car_number = models.CharField(max_length=20, unique=True)
+    password = models.CharField(max_length=50)
+    status = models.CharField(max_length=20, choices=[
+        ('not_working', 'Не работает'),
+        ('in_transit', 'В пути'),
+        ('at_airport', 'В аэропорту'),
+        ('picked_up', 'Забрал клиента')
+    ], default='not_working')
 
-    class Meta:
-        db_table = 'users'  # Указание Django использовать существующую таблицу 'users'
-        managed = False 
+    def __str__(self):
+        return f'{self.car_number} - {self.status}'
 
 class Passenger(models.Model):
-    passenger_id = models.AutoField(primary_key=True, default=0)
-    flight_number = models.CharField(max_length=255)
-    arrival_time = models.CharField(max_length=255)
-    passenger_name = models.CharField(max_length=255)
+    name = models.CharField(max_length=100)
+    flight_number = models.CharField(max_length=20, default=0)
+    arrival_time = models.CharField(max_length=40)
+    assigned_driver = models.ForeignKey(Driver, on_delete=models.SET_NULL, null=True, blank=True)
+    
 
-
-class DriverPassengerRelation(models.Model):
-    relation_id = models.AutoField(primary_key=True, default=0)
-    car_number = models.ForeignKey(User, on_delete=models.CASCADE, default=1)
-    passenger_name = models.ForeignKey(Passenger, on_delete=models.CASCADE, default='name')
-    status = models.CharField(max_length=255)
-
+    def __str__(self):
+        return f'{self.name} - {self.arrival_time} - Assigned Driver: {self.assigned_driver}'
   
 
 

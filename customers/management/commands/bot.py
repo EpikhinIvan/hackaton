@@ -1,57 +1,64 @@
 import telebot
-import sqlite3
+from customers.models import Driver, Passenger
 from telebot import types
 from django.core.management.base import BaseCommand
 
 bot = telebot.TeleBot('6618760153:AAEsWofXuZ8AkdxfOZPSdmCs0P67ytmuLM8')
-DATABASE_PATH = 'auth_database.db'
-FLIGHTS_DATABASE_PATH = 'info_database.db'  
-CONNECTION_DATABASE_PATH = 'connection.db'
 
 logged_in_users = {}
 
 
 def get_user_by_car_number(car_number):
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE car_number = ?', (car_number,))
-    user = cursor.fetchone()
-    conn.close()
-    return user
+    try:
+        return Driver.objects.get(car_number=car_number)
+    except Driver.DoesNotExist:
+        return None
 
 
 @bot.message_handler(commands=['start'])
 def handle_start(message):
-    user = message.from_user
+    user_telegram_id = message.from_user.id
 
-    if user.id in logged_in_users:
+    if user_telegram_id in logged_in_users:
         show_main_menu(message.chat.id)
     else:
         bot.send_message(message.chat.id, "Здравствуйте! Введите номер машины и пароль через запятую для аутентификации.")
 
 
 
-@bot.message_handler(commands=['end'])
-def handle_end(message):
-    user = message.from_user
-    
-    if user.id in logged_in_users:
-        del logged_in_users[user.id]
-        bot.send_message(message.chat.id, "Вы успешно вышли из системы! Введите /start для нового входа.")
+# Завершить поездку
+def end_trip(user_id):
+    user_telegram_id = user_id
+    if user_telegram_id in logged_in_users:
+        user = logged_in_users[user_telegram_id]
+
+        try:
+            passenger = Passenger.objects.get(assigned_driver=user)
+            passenger.assigned_driver = None  # Прерываем связь с водителем
+            passenger.save()
+
+            # Обновляем статус водителя
+            user.status = 'not_working'
+            user.save()
+
+            del logged_in_users[user_telegram_id]
+            bot.send_message(user_telegram_id, "Поездка завершена. Введите /start для нового входа.")
+        except Passenger.DoesNotExist:
+            bot.send_message(user_telegram_id, "У вас нет текущего пассажира.")
     else:
-        bot.send_message(message.chat.id, "Вы не вошли в систему. Введите /start для входа.")
+        bot.send_message(user_telegram_id, "Водитель не вошел в систему. Введите /start для входа.")
+
 
 
 
 @bot.message_handler(func=lambda message: True)
 def handle_credentials_input(message):
-    user = message.from_user
+    user_telegram_id = message.from_user.id
 
-    if user.id in logged_in_users:
+    if user_telegram_id in logged_in_users:
         return
 
     input_text = message.text.strip()
-
     credentials = input_text.split(',')
 
     if len(credentials) == 2:
@@ -61,13 +68,12 @@ def handle_credentials_input(message):
 
         db_user = get_user_by_car_number(car_number)
 
-        if db_user and db_user[2] == password: 
-    
-            logged_in_users[user.id] = {'car_number': car_number}
+        if db_user and db_user.password == password:
+            logged_in_users[user_telegram_id] = db_user
             bot.send_message(message.chat.id, "Аутентификация прошла успешно!")
             show_main_menu(message.chat.id)
         else:
-            bot.send_message(message.chat.id,"Номер машины или пароль неверны. Пожалуйста, повторите попытку или введите /start для начала заново.")
+            bot.send_message(message.chat.id, "Номер машины или пароль неверны. Пожалуйста, повторите попытку или введите /start для начала заново.")
     else:
         bot.send_message(message.chat.id, "Неверный формат ввода. Пожалуйста, введите номер машины и пароль через запятую.")
 
@@ -77,13 +83,14 @@ def show_main_menu(user_id):
     info = types.InlineKeyboardButton('Информация о рейсе', callback_data="info")
     update_status = types.InlineKeyboardButton('Обновить статус', callback_data="update_status")
     end_trip = types.InlineKeyboardButton('Завершить поездку', callback_data="end_trip")
-    keyboard.add(info, update_status, end_trip)
+    exit = types.InlineKeyboardButton('Выйти', callback_data="exit")
+    keyboard.add(info, update_status, end_trip, exit)
 
     bot.send_message(user_id, "Выберите действие:", reply_markup=keyboard)
 
 
 
-@bot.callback_query_handler(func=lambda call: call.data in ['info', 'update_status', 'end_trip'])
+@bot.callback_query_handler(func=lambda call: call.data in ['info', 'update_status', 'end_trip', 'exit'])
 def handle_main_menu_buttons(call):
     user_id = call.from_user.id
 
@@ -91,70 +98,79 @@ def handle_main_menu_buttons(call):
         return
 
     if call.data == 'info':
-        show_flight_info(user_id)
+        show_passenger_info(user_id)
     elif call.data == 'update_status':
         show_update_status_menu(user_id)
     elif call.data == 'end_trip':
-         end_trip(user_id)
+        end_trip(user_id)
+    elif call.data == 'exit':
+        exit(user_id)
 
-
-
-def show_flight_info(user_id):
-    conn = sqlite3.connect(FLIGHTS_DATABASE_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT name, time FROM flights WHERE car_number = ?',(logged_in_users[user_id]['car_number'],))
-    result = cursor.fetchone()
-    conn.close()
-
-    if result:
-        bot.send_message(user_id, f"Информация о рейсе:\nНазвание: {result[0]}\nВремя: {result[1]}")
+def exit(user_id):
+    user_telegram_id = user_id
+    if user_telegram_id in logged_in_users:
+        del logged_in_users[user_telegram_id]
+        bot.send_message(user_telegram_id, "Вы вышли из системы. Введите /start для нового входа.")
     else:
-        bot.send_message(user_id, "Информация о рейсе не найдена.")
+        bot.send_message(user_telegram_id, "Водитель не вошел в систему. Введите /start для входа.")
+    
+
+def show_passenger_info(user_id):
+    user_telegram_id = user_id
+    if user_telegram_id in logged_in_users:
+        user = logged_in_users[user_telegram_id]
+        
+        try:
+            passenger = Passenger.objects.get(assigned_driver=user)
+            bot.send_message(user_id, f"Информация о пассажире:\nИмя: {passenger.name}\nВремя прибытия: {passenger.arrival_time}")
+        except Passenger.DoesNotExist:
+            bot.send_message(user_id, "У вас нет текущего пассажира.")
+    else:
+        bot.send_message(user_id, "Водитель не вошел в систему. Введите /start для входа.")
+
 
 
 def show_update_status_menu(user_id):
     markup = types.InlineKeyboardMarkup(row_width=1)
     airport = types.InlineKeyboardButton('В аэропорту', callback_data="at_airport")
-    way = types.InlineKeyboardButton('В пути', callback_data="on_the_way")
-    delivered = types.InlineKeyboardButton('Клиент доставлен', callback_data="client_delivered")
+    way = types.InlineKeyboardButton('В пути', callback_data="in_transit")
+    delivered = types.InlineKeyboardButton('Забрал клиента', callback_data="picked_up")
     markup.add(airport, way, delivered)
 
     bot.send_message(user_id, "Выберите статус:", reply_markup=markup)
 
 
-@bot.callback_query_handler(func=lambda call: call.data in ['at_airport', 'on_the_way', 'client_delivered'])
+@bot.callback_query_handler(func=lambda call: call.data in ['at_airport', 'in_transit', 'picked_up'])
 def handle_update_status_buttons(call):
     user_id = call.from_user.id
 
     if user_id not in logged_in_users:
         return
 
-    status = call.data
-    save_status_to_database(logged_in_users[user_id]['car_number'], status)
-    bot.send_message(user_id, f"Статус обновлен: {status}")
+    status_mapping = {
+        'at_airport': 'В аэропорту',
+        'in_transit': 'В пути',
+        'picked_up': 'Забрал клиента',
+    }
 
+    status_key = call.data
+    status = status_mapping.get(status_key)
 
-def save_status_to_database(car_number, status):
-    conn = sqlite3.connect(CONNECTION_DATABASE_PATH)
-    cursor = conn.cursor()
-    cursor.execute('UPDATE DriverPassengerRelation SET status = ? WHERE car_number = ?', (status, car_number))
-    conn.commit()
-    conn.close()
+    if status:
+        update_status(user_id, status)
 
-# 12222222222222222222222222222222222222222222222222222222222222222222222222222222222
+def update_status(user_id, new_status):
+    user_telegram_id = user_id
+    if user_telegram_id in logged_in_users:
+        user = logged_in_users[user_telegram_id]
 
-# Завершить поездку
-def end_trip(user_id):
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM users WHERE car_number = ?', (logged_in_users[user_id]['car_number'],))
-    conn.commit()
-    conn.close()
+        # Обновляем статус водителя
+        user.status = new_status
+        user.save()
 
-    # Удаляем пользователя из списка вошедших
-    del logged_in_users[user_id]
-
-    bot.send_message(user_id, "Поездка завершена. Введите /start для нового входа.")
+        bot.send_message(user_telegram_id, f"Статус обновлен: {new_status}")
+    else:
+        bot.send_message(user_telegram_id, "Водитель не вошел в систему. Введите /start для входа.")
 
 
 class Command(BaseCommand):

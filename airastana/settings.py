@@ -79,18 +79,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     },
-    'database1': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'auth_database.db',
-    },
-    'database2': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'connection.db',
-    },
-    'database3': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'info_database.db',
-    }
+
 }
 # DATABASE_ROUTERS = ['path.to.your.AuthDatabaseRouter']  # Замените на путь к вашему роутеру
 

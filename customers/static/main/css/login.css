@@ -2,9 +2,9 @@
 .login-container {
     background-color: #fff; 
     padding: 20px;
-    border-radius: 5px;
+    border-radius: 15px;
     box-shadow: 0 0 10px rgba(242, 0, 0, 0.1);
-    width: 300px; 
+    width: 400px; 
     margin: 0 auto; 
     text-align: center; 
 }
@@ -13,10 +13,52 @@
     text-align: left; 
 }
 
+input {
+    padding-left: 10px;
+}
+hr{
+    border-color: #a3a3a321;
+    
+}
+
+.dota {
+    text-align: center;
+}
+
+h1 {
+    color: #494949;
+}
+.minecraft{
+    display: flex;
+    border-radius: 20px;
+    border-color: #ebebeb;
+    width: 350px;
+    height: 35px;
+    background-color: #ebebeb;
+    margin: 0 auto;
+}
+
+.btn {
+    background-color: #5cb85c;
+    border-radius: 20px;
+    color: white;
+    margin-left: 300px;
+    width: 80px;
+    height: 36px;
+    font-size: 18px;
+}
+
+.ttt{
+    margin-left: 24px;
+    font-size: 18px; 
+}
 
 body {
     font-family: Arial, sans-serif;
-    background: #bfbebe; 
+
+    background-size: cover; 
+    background-color: #1c1c1c;
+    font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
     display: flex;

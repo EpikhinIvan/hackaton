@@ -1,0 +1,67 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="{% static 'main/css/main.css' %}">
+
+</head>
+
+<body>
+  {% if user.is_authenticated %}
+  <form method="post" action="{% url 'logout' %}">
+    {% csrf_token %}
+    <button class="exit" type="submit">Выйти</button>
+  </form>
+  <p>Вы вошли как: {{ user.username }}</p>
+
+  <div class="wrapper">
+    <div class="container">
+      <h2>Привязать</h2>
+
+      <form method="post" action="{% url 'link_passenger_driver' %}">
+        {% csrf_token %}
+
+        <label for="driver_id">Выберите водителя:</label>
+
+        <select name="driver_id">
+          {% for driver in drivers %}
+          <option value="{{ driver.id }}">{{ driver.car_number }} - Количество заказов: {{ driver.num_orders }}</option>
+          {% endfor %}
+        </select>
+
+        <label for="passenger_id">Выберите пассажира:</label>
+
+        <select name="passenger_id">
+          {% for passenger in passengers %}
+          <option value="{{ passenger.id }}">{{ passenger.name }} - {{ passenger.arrival_time }}</option>
+          {% endfor %}
+        </select>
+
+        <button class="accept" type="submit">Связать</button>
+      </form>
+      <div>
+        <button class="navlink"><a class="nav" href="{% url 'link_passenger_driver' %}">Добавить водителя</a></button>
+      </div>
+    </div>
+
+
+    <div class="container2">
+      <h2>Список занятых водителей</h2>
+      <ul>
+        {% for driver in drivers %}
+        <li>{{ driver.car_number }} - Статус: {{ driver.status }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+
+    
+  </div>
+
+  {% endif %}
+</body>
+</html>
