@@ -3,7 +3,13 @@ from django.contrib.auth import authenticate, login
 from .models import Passenger, Driver
 from .forms import DriverForm
 from django.db.models import Count
-
+import fitz
+import re
+from datetime import datetime
+from .forms import UploadPDFForm
+from django.http import HttpResponse
+import logging
+logger = logging.getLogger(__name__)
 
 def index(request):
     results = None
@@ -29,13 +35,18 @@ def main(request):
     return render(request, 'main/main.html')
 
 
+
 def add_driver(request):
     if request.method == 'POST':
         form = DriverForm(request.POST)
         if form.is_valid():
             form.save()
-            return redirect('index')  
-    return render(request, 'main/main.html', {'user': request.user, 'form': DriverForm()})
+            return redirect('index')
+    else:
+        form = DriverForm()
+
+    return render(request, 'main/main.html', {'user': request.user, 'form': form})
+
 
 
 def login_view(request):
@@ -73,3 +84,52 @@ def link_passenger_driver(request):
     drivers = Driver.objects.annotate(num_orders=Count('passenger__id'))
     
     return render(request, 'main/link_passenger_driver.html', {'passengers': passengers, 'drivers': drivers})
+
+
+##############################################
+
+def extract_passenger_and_flight_info(text, exclude_brackets=False):
+    passenger_info_pattern = r"Passengers\s*\n\s*SINGLE\s*\n(\w+ \w+ \(\w+\))"
+    flight_info_pattern = r"KC\d+,\s*(\d{2}\.\d{2}\.\d{4}\s*\(\d{2}:\d{2}\))" if not exclude_brackets else r"KC\d+,\s*\d{2}\.\d{2}\.\d{4}\s*\(\d{2}:\d{2}\)"
+
+    passenger_match = re.search(passenger_info_pattern, text)
+    passenger_info = passenger_match.group(1) if passenger_match else 'Passenger information not found'
+
+    flight_info_matches = re.findall(flight_info_pattern, text)
+    flight_info = flight_info_matches[0] if flight_info_matches else 'Flight information not found'
+
+    return passenger_info, flight_info
+
+def filter_and_save_passengers(passenger_info, flight_info):
+    for passenger_name in passenger_info.split('\n'):
+        passenger_name = passenger_name.strip()
+        if passenger_name:
+            Passenger.objects.create(name=passenger_name, arrival_time=datetime.strptime(flight_info, '%d.%m.%Y (%H:%M)'))
+
+def upload_pdf(request):
+    if request.method == 'POST':
+        form = UploadPDFForm(request.POST, request.FILES)
+        if form.is_valid():
+            pdf_file = request.FILES['file']
+            if pdf_file:
+                try:
+                    with fitz.open(stream=pdf_file.read(), filetype="pdf") as pdf:
+                        pdf_text = ''
+                        for page in pdf:
+                            pdf_text += page.get_text()
+
+                    passenger_info, flight_info = extract_passenger_and_flight_info(pdf_text)
+
+                    filter_and_save_passengers(passenger_info, flight_info)
+
+                    return HttpResponse('Passengers saved to the database.')
+                except Exception as e:
+                    logger.error(f'Ошибка при загрузке файла: {e}')
+                    return HttpResponse(f'Error: {e}', status=500)
+            else:
+                return HttpResponse('Файл не был загружен.', status=400)
+        else:
+            return HttpResponse('Неверные данные формы.', status=400)
+    else:
+        form = UploadPDFForm()
+        return render(request, 'main/add_pas.html', {'form': form})

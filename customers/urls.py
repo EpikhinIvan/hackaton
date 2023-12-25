@@ -9,6 +9,7 @@ urlpatterns = [
     path('main.html', views.main, name="main"),
     path('logout/', auth_views.LogoutView.as_view(next_page='index'), name='logout'),
 
+    path('add_pas/', views.upload_pdf, name='add_pas'),
     path('link_passenger_driver/', views.link_passenger_driver, name='link_passenger_driver')
     
 ]

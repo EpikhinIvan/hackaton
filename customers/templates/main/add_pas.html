@@ -20,18 +20,17 @@
     <p>Вы вошли как: {{ user.username }}</p>
 
     <div class="container">
-        <h2>Добавить водителя</h2>
-        <form method="post" action="{% url 'add_driver' %}">
+        
+        <h2>Загрузить PDF</h2>
+        <form method="post" action="{% url 'add_pas' %}" enctype="multipart/form-data">
             {% csrf_token %}
-            <label for="car_number">Номер машины:</label>
-            <input type="text" name="car_number" required>
-            <label for="password">Пароль:</label>
-            <input type="password" name="password" required>
-            <button class="accept" type="submit">Добавить</button>
+            <label for="file">Выберите файл PDF:</label>
+            {{ form.file }}
+            <button class="accept" type="submit">Загрузить</button>
         </form>
+
         <div>
             <button class="navlink"><a class="nav" href="{% url 'link_passenger_driver' %}">Привязать водителя</a></button>
-            <button class="navlink"><a class="nav" href="{% url 'add_pas' %}">Добавить пассажира</a></button>
         </div>
 
     </div>
